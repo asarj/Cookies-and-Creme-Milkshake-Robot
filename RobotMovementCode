@@ -1,0 +1,116 @@
+#include <Servo.h>
+
+//FIGURE OUT HOW TO INTEGRATE WITH XBOX CONTROLLER
+  int wheel1 = 11;
+  int wheel3 = 3;
+  int wheel2 = 5;
+  int wheel4 = 6; 
+  int servoPin = 9; 
+  Servo myservo;
+  
+void setup() {
+  pinMode(wheel1, OUTPUT);
+  pinMode(wheel3, OUTPUT);
+  pinMode(wheel2, OUTPUT);
+  pinMode(wheel4, OUTPUT);
+  myservo.attach(9);
+  Serial.begin(9600); // opens serial port, sets data rate to 9600 bps
+//    myservo.write(10);
+  
+}
+//index 1 is left joystick Y, index 2 is left trigger, 
+//and index 4 is right joystick Y, index 5 is right trigger 
+//index 6 is 255 if there is new data
+//Index 0 is 'L' index 3 is 'R'
+//array[L, leftjoystick, lefttrigger, R, rightjoystick, righttrigger, 255/newData]
+byte raw_data[7];
+void checkData() {
+   
+//Wait until at least 6 bytes are available. We expect 6 bytes at a time from msg
+if (Serial.available() >= 6) {
+  for(int i = 0; i < 6; i++) {
+    raw_data[i] = Serial.read();
+//      Serial.print(" Data: ");
+//      Serial.print(raw_data[i]);
+  }
+//   If we get out of sync realign data. Could also try Serial.flush() instead if not aligned
+  for(int i = 0; i < 6; i++) {
+    if(raw_data[0] == 76 && raw_data[3] == 82) {
+      break;
+    }
+    byte temp = raw_data[0];
+    raw_data[0] = raw_data[1];
+    raw_data[1] = raw_data[2];
+    raw_data[2] = raw_data[3];
+    raw_data[3] = raw_data[4];
+    raw_data[4] = raw_data[5];
+    raw_data[5] = temp;
+  }
+  raw_data[6] = 255;
+}
+}
+void loop() {
+   checkData(); // Checks data and updates raw_data global variable
+  //Raw data[6] is a flag that checkdata sets. Make sure to set this to other than 255 if we have tended to it        
+   if(raw_data[6] == 255) {
+      raw_data[6] = 0;
+      for(int i = 0; i < 6; i++) {
+        Serial.print(" ");
+        Serial.print(raw_data[i]);
+    }
+        Serial.println("");
+   }
+
+  move(raw_data[1], raw_data[4]);
+  moveServo(raw_data[2]);
+  
+}
+
+void move(int left, int right){
+  if((left >= 0 && left <= 127) && (right >= 0 && right <= 127)){
+    analogWrite(wheel1, left * 2);
+    digitalWrite(wheel2, LOW);
+    digitalWrite(wheel3, LOW);
+    analogWrite(wheel4, right * 2);
+  }
+  else if((left >= 128 && left <= 255) && (right >= 128 && right <= 255)){
+    analogWrite(wheel1, (left -128) * 2);
+    digitalWrite(wheel2, HIGH);
+    digitalWrite(wheel3, HIGH);
+    analogWrite(wheel4, (right - 128) * 2);
+  }
+  else if((left > 0 && left <= 127) && (right > 128 && right <= 255)){
+    analogWrite(wheel1, (left * 2));
+    digitalWrite(wheel2, LOW);
+    digitalWrite(wheel3, HIGH);
+    analogWrite(wheel4, ((right - 128) * 2));
+  }
+  else if ((left >= 128 && left <= 255) && (right > 0 && right <= 127)){
+    analogWrite(wheel1, ((left - 128) * 2));
+    digitalWrite(wheel2, HIGH);
+    digitalWrite(wheel3, LOW);
+    analogWrite(wheel4, (right * 2));
+  }
+  
+}
+
+void moveServo(int t){
+  
+    int servoPos = t;
+//    Serial.write((int)servoPos);
+    if(t <= 20){
+      servoPos = 130;
+      myservo.write(servoPos);
+      Serial.print("Pos 1 : ");
+      Serial.println((int)servoPos);
+    }
+    else if(servoPos >= 130){
+      servoPos = 30;
+      myservo.write(servoPos);
+       Serial.print("Pos 2: ");
+      Serial.println((int)servoPos);
+    }
+    else{
+  //    System.out.println("Error");
+    }
+}
